@@ -48,7 +48,6 @@ async function iniciarBot() {
         }
     });
 
-    // Escuchar actualizaciones de presencia (en línea / última vez)
     sock.ev.on('presence.update', async (json) => {
         if (json.id === NUMERO_OBJETIVO) {
             const estado = json.presences[NUMERO_OBJETIVO]?.lastKnownPresence;
@@ -61,7 +60,6 @@ async function iniciarBot() {
     });
 }
 
-// Servidor web básico para mantener vivo el servicio en Render
 app.get('/', (req, res) => {
     res.send('Bot de Rastreo Node.js Activo');
 });
