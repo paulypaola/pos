@@ -3,6 +3,7 @@ const { Boom } = require('@hapi/boom');
 const pino = require('pino');
 const express = require('express');
 const axios = require('axios');
+const qrcode = require('qrcode-terminal');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -28,14 +29,19 @@ async function iniciarBot() {
     
     const sock = makeWASocket({
         auth: state,
-        logger: pino({ level: 'silent' }),
-        printQRInTerminal: true
+        logger: pino({ level: 'silent' })
     });
 
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect } = update;
+        const { connection, lastDisconnect, qr } = update;
+        
+        if (qr) {
+            console.log('Escanea el siguiente código QR con tu WhatsApp:');
+            qrcode.generate(qr, { small: true });
+        }
+
         if (connection === 'open') {
             console.log('¡Conectado a WhatsApp exitosamente!');
             enviarTelegram("🟢 *Rastreador Node.js Iniciado*\nSesión vinculada correctamente.");
