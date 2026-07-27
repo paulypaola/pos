@@ -61,8 +61,6 @@ async function iniciarBot() {
             
             if (shouldReconnect) {
                 setTimeout(iniciarBot, 3000);
-            } else {
-                console.log('Sesión cerrada por completo. Borra la carpeta de credenciales si necesitas un nuevo QR.');
             }
         }
     });
